@@ -123,7 +123,7 @@ def run():
     if not args.dry_run:
         if args.mode == "tmux":
             os.environ["TMUX"] = ""
-        os.system("\n".join(cmds))
+        os.system("\n".join(cmds))  #this is the execution
     print('\n'.join(notes))
 
 #--------------------------------------------------------------------------------------------------------------------------------
