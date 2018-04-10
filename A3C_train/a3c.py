@@ -1,3 +1,9 @@
+#--------------------------------------------------------------------------------------------------------------------------------
+# CS 542 Machine Learning Project, Winter 2018, Boston University
+# Modified for the purpose of project
+# Original code by OpenAI
+# Description: This is the main function that contains: 1. command line argument parsing. 2. tensorflow worker initialization
+#--------------------------------------------------------------------------------------------------------------------------------
 from __future__ import print_function
 from collections import namedtuple
 import numpy as np
@@ -9,9 +15,10 @@ import threading
 import distutils.version
 use_tf12_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('0.12.0')
 
+#--------------------------------------------------------------------------------------------------------------------------------
 def discount(x, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
-
+#--------------------------------------------------------------------------------------------------------------------------------
 def process_rollout(rollout, gamma, lambda_=1.0):
     """
 given a rollout, compute its returns and the advantage
@@ -33,6 +40,7 @@ given a rollout, compute its returns and the advantage
 
 Batch = namedtuple("Batch", ["si", "a", "adv", "r", "terminal", "features"])
 
+#--------------------------------------------------------------------------------------------------------------------------------
 class PartialRollout(object):
     """
 a piece of a complete rollout.  We run our agent, and process its experience
@@ -64,7 +72,7 @@ once it has processed enough steps.
         self.r = other.r
         self.terminal = other.terminal
         self.features.extend(other.features)
-
+#--------------------------------------------------------------------------------------------------------------------------------
 class RunnerThread(threading.Thread):
     """
 One of the key distinctions between a normal environment and a universe environment
@@ -102,7 +110,7 @@ that would constantly interact with the environment and tell it what to do.  Thi
             self.queue.put(next(rollout_provider), timeout=600.0)
 
 
-
+#--------------------------------------------------------------------------------------------------------------------------------
 def env_runner(env, policy, num_local_steps, summary_writer, render):
     """
 The logic of the thread runner.  In brief, it constantly keeps on running
@@ -157,7 +165,7 @@ runner appends the policy to the queue.
 
         # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
         yield rollout
-
+#--------------------------------------------------------------------------------------------------------------------------------
 class A3C(object):
     def __init__(self, env, task, visualise):
         """
@@ -165,19 +173,28 @@ An implementation of the A3C algorithm that is reasonably well-tuned for the VNC
 Below, we will have a modest amount of complexity due to the way TensorFlow handles data parallelism.
 But overall, we'll define the model, specify its inputs, and describe how the policy gradients step
 should be computed.
+parameters:
+    1. env: environment
+    2. task: taks id
+    3. network: LSTMPolicy
+    4. global_step: variable that tracks global steps
+    5. local_network: 
 """
 
         self.env = env
-        self.task = task
-        worker_device = "/job:worker/task:{}/cpu:0".format(task)
+        self.task = task    #task id specifying which worker is working
+        worker_device = "/job:worker/task:{}/cpu:0".format(task)  #create single worker
+        #while  
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
+                #
                 self.network = LSTMPolicy(env.observation_space.shape, env.action_space.n)
                 self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
 
         with tf.device(worker_device):
             with tf.variable_scope("local"):
+                #space dimension 128 x 200, action
                 self.local_network = pi = LSTMPolicy(env.observation_space.shape, env.action_space.n)
                 pi.global_step = self.global_step
 
