@@ -1,6 +1,6 @@
 #--------------------------------------------------------------------------------------------------------------------------------
 # CS 542 Machine Learning Project, Winter 2018, Boston University
-# Modified by: Siqi Zhang
+# Modified for the purpose of project
 # Original code by OpenAI
 # Description: This is the main function that contains: 1. command line argument parsing. 2. tensorflow worker initialization
 #--------------------------------------------------------------------------------------------------------------------------------
