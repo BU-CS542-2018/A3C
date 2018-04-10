@@ -1,19 +1,25 @@
+#--------------------------------------------------------------------------------------------------------------------------------
+# CS 542 Machine Learning Project, Winter 2018, Boston University
+# Modified for the purpose of project
+# Original code by OpenAI
+# Description: Wrapper for Universe environment
+#--------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.rnn as rnn
 import distutils.version
 use_tf100_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('1.0.0')
-
+#--------------------------------------------------------------------------------------------------------------------------------
 def normalized_columns_initializer(std=1.0):
     def _initializer(shape, dtype=None, partition_info=None):
         out = np.random.randn(*shape).astype(np.float32)
         out *= std / np.sqrt(np.square(out).sum(axis=0, keepdims=True))
         return tf.constant(out)
     return _initializer
-
+#--------------------------------------------------------------------------------------------------------------------------------
 def flatten(x):
     return tf.reshape(x, [-1, np.prod(x.get_shape().as_list()[1:])])
-
+#--------------------------------------------------------------------------------------------------------------------------------
 def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", dtype=tf.float32, collections=None):
     with tf.variable_scope(name):
         stride_shape = [1, stride[0], stride[1], 1]
@@ -34,16 +40,16 @@ def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", 
         b = tf.get_variable("b", [1, 1, 1, num_filters], initializer=tf.constant_initializer(0.0),
                             collections=collections)
         return tf.nn.conv2d(x, w, stride_shape, pad) + b
-
+#--------------------------------------------------------------------------------------------------------------------------------
 def linear(x, size, name, initializer=None, bias_init=0):
     w = tf.get_variable(name + "/w", [x.get_shape()[1], size], initializer=initializer)
     b = tf.get_variable(name + "/b", [size], initializer=tf.constant_initializer(bias_init))
     return tf.matmul(x, w) + b
-
+#--------------------------------------------------------------------------------------------------------------------------------
 def categorical_sample(logits, d):
     value = tf.squeeze(tf.multinomial(logits - tf.reduce_max(logits, [1], keep_dims=True), 1), [1])
     return tf.one_hot(value, d)
-
+#--------------------------------------------------------------------------------------------------------------------------------
 class LSTMPolicy(object):
     def __init__(self, ob_space, ac_space):
         self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space))
