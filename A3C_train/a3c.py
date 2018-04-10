@@ -178,7 +178,10 @@ parameters:
     2. task: taks id
     3. network: LSTMPolicy
     4. global_step: variable that tracks global steps
-    5. local_network: 
+    5. local_network: copy of LSTMPolicy
+    6. ac: action place holder
+    7. adv: advantage place holder, single value
+    8. r: reward
 """
 
         self.env = env
@@ -187,15 +190,16 @@ parameters:
         #while  
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
-                #
+                # the input shpae is 128 x 200, size of the action is 
                 self.network = LSTMPolicy(env.observation_space.shape, env.action_space.n)
                 self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
 
         with tf.device(worker_device):
             with tf.variable_scope("local"):
-                #space dimension 128 x 200, action
+                #space dimension 128 x 200, action space size 7, if using neon race
                 self.local_network = pi = LSTMPolicy(env.observation_space.shape, env.action_space.n)
+                #this 
                 pi.global_step = self.global_step
 
             self.ac = tf.placeholder(tf.float32, [None, env.action_space.n], name="ac")
