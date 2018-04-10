@@ -21,9 +21,12 @@ logger.setLevel(logging.INFO)
 universe.configure_logging()
 #--------------------------------------------------------------------------------------------------------------------------------
 def create_env(env_id, client_id, remotes, **kwargs):
-    spec = gym.spec(env_id)
+    #create the gym/universe environment
+    spec = gym.spec(env_id) 
 
     if spec.tags.get('flashgames', False):
+        #neon race is a flash game, which is what we will need
+        #other cases are just for safe bound
         return create_flash_env(env_id, client_id, remotes, **kwargs)
     elif spec.tags.get('atari', False) and spec.tags.get('vnc', False):
         return create_vncatari_env(env_id, client_id, remotes, **kwargs)
@@ -33,23 +36,26 @@ def create_env(env_id, client_id, remotes, **kwargs):
         return create_atari_env(env_id)
 #--------------------------------------------------------------------------------------------------------------------------------
 def create_flash_env(env_id, client_id, remotes, **_):
+    #environment wrappers
     env = gym.make(env_id)
     env = Vision(env)
     env = Logger(env)
     env = BlockingReset(env)
 
     reg = universe.runtime_spec('flashgames').server_registry
+    #environment resizing
     height = reg[env_id]["height"]
     width = reg[env_id]["width"]
     env = CropScreen(env, height, width, 84, 18)
     env = FlashRescale(env)
-
+    
+    #define action space
     keys = ['left', 'right', 'up', 'down', 'x']
     if env_id == 'flashgames.NeonRace-v0':
         # Better key space for this game.
         keys = ['left', 'right', 'up', 'left up', 'right up', 'down', 'up x']
     logger.info('create_flash_env(%s): keys=%s', env_id, keys)
-
+    
     env = DiscreteToFixedKeysVNCActions(env, keys)
     env = EpisodeID(env)
     env = DiagnosticsInfo(env)
@@ -87,6 +93,7 @@ def create_atari_env(env_id):
 def DiagnosticsInfo(env, *args, **kwargs):
     return vectorized.VectorizeFilter(env, DiagnosticsInfoI, *args, **kwargs)
 #--------------------------------------------------------------------------------------------------------------------------------
+# print the info to log for the purpose of debugging
 class DiagnosticsInfoI(vectorized.Filter):
     def __init__(self, log_interval=503):
         super(DiagnosticsInfoI, self).__init__()
@@ -112,11 +119,12 @@ class DiagnosticsInfoI(vectorized.Filter):
         to_log = {}
         if self._episode_length == 0:
             self._episode_time = time.time()
-
+        
+        # incremental step
         self._local_t += 1
         if info.get("stats.vnc.updates.n") is not None:
             self._num_vnc_updates += info.get("stats.vnc.updates.n")
-
+        
         if self._local_t % self._log_interval == 0:
             cur_time = time.time()
             elapsed = cur_time - self._last_time
@@ -225,11 +233,16 @@ class DiscreteToFixedKeysVNCActions(vectorized.ActionWrapper):
     You can define a state with more than one key down by separating with spaces. For example,
        e=DiscreteToFixedKeysVNCActions(e, ['left', 'right', 'space', 'left space', 'right space'])
     will have 6 actions: [none, left, right, space, left space, right space]
+    
+    properties:
+        1. keys. e.g. ['left', 'right', 'up', 'left up', 'right up', 'down', 'up x']
+        2. action_space: converted keys into discrete action space.
+        3. _actions
     """
     #--------------------------------------------------------------------------------------------------------------------------------
     def __init__(self, env, keys):
         super(DiscreteToFixedKeysVNCActions, self).__init__(env)
-
+        
         self._keys = keys
         self._generate_actions()
         self.action_space = spaces.Discrete(len(self._actions))
@@ -263,8 +276,9 @@ class CropScreen(vectorized.ObservationWrapper):
         self.width = width
         self.top = top
         self.left = left
-        self.observation_space = Box(0, 255, shape=(height, width, 3))
+        self.observation_space = Box(0, 255, shape=(height, width, 3))     # still RGB, ranged from 0 - 255
     #--------------------------------------------------------------------------------------------------------------------------------
+    # crop the observation dimension as well
     def _observation(self, observation_n):
         return [ob[self.top:self.top+self.height, self.left:self.left+self.width, :] if ob is not None else None
                 for ob in observation_n]
@@ -276,10 +290,11 @@ def _process_frame_flash(frame):
     frame = np.reshape(frame, [128, 200, 1])
     return frame
 #--------------------------------------------------------------------------------------------------------------------------------
+# rescale to 128 by 200
 class FlashRescale(vectorized.ObservationWrapper):
     def __init__(self, env=None):
         super(FlashRescale, self).__init__(env)
-        self.observation_space = Box(0.0, 1.0, [128, 200, 1])
+        self.observation_space = Box(0.0, 1.0, [128, 200, 1])   # converted into greyscale, normalized to range from 0 - 1
 
     def _observation(self, observation_n):
         return [_process_frame_flash(observation) for observation in observation_n]
