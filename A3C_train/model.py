@@ -20,6 +20,7 @@ def normalized_columns_initializer(std=1.0):
 def flatten(x):
     return tf.reshape(x, [-1, np.prod(x.get_shape().as_list()[1:])])
 #--------------------------------------------------------------------------------------------------------------------------------
+# wrapper function for creating a convolutional layer
 def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", dtype=tf.float32, collections=None):
     with tf.variable_scope(name):
         stride_shape = [1, stride[0], stride[1], 1]
@@ -50,6 +51,14 @@ def categorical_sample(logits, d):
     value = tf.squeeze(tf.multinomial(logits - tf.reduce_max(logits, [1], keep_dims=True), 1), [1])
     return tf.one_hot(value, d)
 #--------------------------------------------------------------------------------------------------------------------------------
+# this is the main neural network architecture
+"""
+Parameters:
+ob_space: 128 x 200
+ac_space: 7
+properties:
+x:
+"""
 class LSTMPolicy(object):
     def __init__(self, ob_space, ac_space):
         self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space))
