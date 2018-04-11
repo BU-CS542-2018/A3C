@@ -179,7 +179,7 @@ parameters:
     3. network: LSTMPolicy
     4. global_step: variable that tracks global steps
     5. local_network: copy of LSTMPolicy
-    6. ac: action place holder
+    6. ac: acter critic
     7. adv: advantage place holder, single value
     8. r: reward
 """
@@ -199,13 +199,15 @@ parameters:
             with tf.variable_scope("local"):
                 #space dimension 128 x 200, action space size 7, if using neon race
                 self.local_network = pi = LSTMPolicy(env.observation_space.shape, env.action_space.n)
-                #this 
+                #this syncronize the worker with global step
                 pi.global_step = self.global_step
-
+            
+            #placeholder for variables
             self.ac = tf.placeholder(tf.float32, [None, env.action_space.n], name="ac")
             self.adv = tf.placeholder(tf.float32, [None], name="adv")
             self.r = tf.placeholder(tf.float32, [None], name="r")
-
+            
+            # 
             log_prob_tf = tf.nn.log_softmax(pi.logits)
             prob_tf = tf.nn.softmax(pi.logits)
 
