@@ -124,7 +124,7 @@ class LSTMPolicy(object):
         x = tf.reshape(lstm_outputs, [-1, size])
         
         # convert to a tensor, which will further be computed using softmax in a3c object.
-        self.logits = .(x, ac_space, "action", normalized_columns_initializer(0.01))
+        self.logits = linear(x, ac_space, "action", normalized_columns_initializer(0.01))
         # this will return one value as our state value
         self.vf = tf.reshape(linear(x, 1, "value", normalized_columns_initializer(1.0)), [-1])   
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
