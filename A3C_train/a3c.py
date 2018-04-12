@@ -16,6 +16,7 @@ import distutils.version
 use_tf12_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('0.12.0')
 
 #--------------------------------------------------------------------------------------------------------------------------------
+# discount function used for reward discount and advantage discount
 def discount(x, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
 #--------------------------------------------------------------------------------------------------------------------------------
@@ -73,6 +74,7 @@ once it has processed enough steps.
         self.terminal = other.terminal
         self.features.extend(other.features)
 #--------------------------------------------------------------------------------------------------------------------------------
+
 class RunnerThread(threading.Thread):
     """
 One of the key distinctions between a normal environment and a universe environment
@@ -126,6 +128,7 @@ runner appends the policy to the queue.
         terminal_end = False
         rollout = PartialRollout()
 
+        # run t_max of steps before parameter updating
         for _ in range(num_local_steps):
             fetched = policy.act(last_state, *last_features)
             action, value_, features = fetched[0], fetched[1], fetched[2:]
@@ -182,6 +185,8 @@ parameters:
     6. ac: acter critic
     7. adv: advantage place holder, single value
     8. r: reward
+    9. loss: the loss value
+    10. runner
 """
 
         self.env = env
@@ -190,7 +195,7 @@ parameters:
         #while  
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
-                # the input shpae is 128 x 200, size of the action is 
+                # the input shpae is 128 x 200 x 1, size of the action is 
                 self.network = LSTMPolicy(env.observation_space.shape, env.action_space.n)
                 self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
@@ -207,7 +212,7 @@ parameters:
             self.adv = tf.placeholder(tf.float32, [None], name="adv")
             self.r = tf.placeholder(tf.float32, [None], name="r")
             
-            # 
+            # probability of actions
             log_prob_tf = tf.nn.log_softmax(pi.logits)
             prob_tf = tf.nn.softmax(pi.logits)
 
@@ -217,10 +222,11 @@ parameters:
             pi_loss = - tf.reduce_sum(tf.reduce_sum(log_prob_tf * self.ac, [1]) * self.adv)
 
             # loss of value function
-            vf_loss = 0.5 * tf.reduce_sum(tf.square(pi.vf - self.r))
+            vf_loss = 0.5 * tf.reduce_sum(tf.square(pi.vf - self.r))   # sum of squared error which is defined as state_value - actual_reward
             entropy = - tf.reduce_sum(prob_tf * log_prob_tf)
 
             bs = tf.to_float(tf.shape(pi.x)[0])
+            # this is the total loss function
             self.loss = pi_loss + 0.5 * vf_loss - entropy * 0.01
 
             # 20 represents the number of "local steps":  the number of timesteps
@@ -229,11 +235,13 @@ parameters:
             # on the one hand;  but on the other hand, we get less frequent parameter updates, which
             # slows down learning.  In this code, we found that making local steps be much
             # smaller than 20 makes the algorithm more difficult to tune and to get to work.
+            #t_max = 20, looking a head of 20 steps
             self.runner = RunnerThread(env, pi, 20, visualise)
 
 
             grads = tf.gradients(self.loss, pi.var_list)
 
+            #save summary
             if use_tf12_api:
                 tf.summary.scalar("model/policy_loss", pi_loss / bs)
                 tf.summary.scalar("model/value_loss", vf_loss / bs)
@@ -252,11 +260,14 @@ parameters:
                 tf.scalar_summary("model/var_global_norm", tf.global_norm(pi.var_list))
                 self.summary_op = tf.merge_all_summaries()
 
+            # perform gradient clipping
+            # https://hackernoon.com/gradient-clipping-57f04f0adae
             grads, _ = tf.clip_by_global_norm(grads, 40.0)
 
             # copy weights from the parameter server to the local model
             self.sync = tf.group(*[v1.assign(v2) for v1, v2 in zip(pi.var_list, self.network.var_list)])
 
+            # this will generate a tuple, where each of elements is in the form of (gradient, variable_name)
             grads_and_vars = list(zip(grads, self.network.var_list))
             inc_step = self.global_step.assign_add(tf.shape(pi.x)[0])
 
@@ -265,11 +276,12 @@ parameters:
             self.train_op = tf.group(opt.apply_gradients(grads_and_vars), inc_step)
             self.summary_writer = None
             self.local_steps = 0
-
+#--------------------------------------------------------------------------------------------------------------------------------
+# called by worker, start training   
     def start(self, sess, summary_writer):
         self.runner.start_runner(sess, summary_writer)
         self.summary_writer = summary_writer
-
+#--------------------------------------------------------------------------------------------------------------------------------
     def pull_batch_from_queue(self):
         """
 self explanatory:  take a rollout from the queue of the thread runner.
@@ -281,7 +293,7 @@ self explanatory:  take a rollout from the queue of the thread runner.
             except queue.Empty:
                 break
         return rollout
-
+#--------------------------------------------------------------------------------------------------------------------------------
     def process(self, sess):
         """
 process grabs a rollout that's been produced by the thread runner,
@@ -291,6 +303,7 @@ server.
 
         sess.run(self.sync)  # copy weights from shared to local
         rollout = self.pull_batch_from_queue()
+        
         batch = process_rollout(rollout, gamma=0.99, lambda_=1.0)
 
         should_compute_summary = self.task == 0 and self.local_steps % 11 == 0
