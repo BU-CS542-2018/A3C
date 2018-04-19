@@ -1,5 +1,5 @@
 The codebase implements a starter agent that can solve a number of `universe` environments. Original website: https://github.com/openai/universe-starter-agent
-It contains a basic implementation of the [A3C algorithm](https://arxiv.org/abs/1602.01783), adapted for real-time environments.
+This repo contains a basic implementation of the [A3C algorithm](https://arxiv.org/abs/1602.01783), adapted for real-time environments.
 
 # Dependencies
 
@@ -16,7 +16,7 @@ It contains a basic implementation of the [A3C algorithm](https://arxiv.org/abs/
 * [numpy](https://pypi.python.org/pypi/numpy)
 * [scipy](https://pypi.python.org/pypi/scipy)
 
-`python train.py --num-workers 2 --env-id flashgames.NeonRace-v0 --log-dir /tmp/neonrace`
+`python train.py --num-workers 4 --env-id flashgames.NeonRace-v0 --log-dir ~/neonrace`
 
 The command above will train an agent
 It will see two workers that will be learning in parallel (`--num-workers` flag) and will output intermediate results into given directory.
@@ -35,5 +35,5 @@ To access TensorBoard to see various monitoring metrics of the agent, open [http
 
 Add '--visualise' toggle if you want to visualise the worker using env.render() as follows:
 
-`python train.py --num-workers 2 --env-id flashgames.NeonRace-v0 --log-dir /tmp/neonrace --visualise`
+`python train.py --num-workers 4 --env-id flashgames.NeonRace-v0 --log-dir ~/neonrace --visualise`
 
