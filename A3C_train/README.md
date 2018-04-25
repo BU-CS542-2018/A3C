@@ -19,11 +19,10 @@ This repo contains a basic implementation of the [A3C algorithm](https://arxiv.o
 `python train.py --num-workers 4 --env-id flashgames.NeonRace-v0 --log-dir ~/neonrace`
 
 The command above will train an agent
-It will see two workers that will be learning in parallel (`--num-workers` flag) and will output intermediate results into given directory.
+It will see 4 workers that will be learning in parallel (`--num-workers` flag) and will output intermediate results into given directory.
 
 The code will launch the following processes:
-* worker-0 - a process that runs policy gradient
-* worker-1 - a process identical to process-1, that uses different random noise from the environment
+* worker-0 to worker 3 - four processes that run policy gradient
 * ps - the parameter server, which synchronizes the parameters among the different workers
 * tb - a tensorboard process for convenient display of the statistics of learning
 
