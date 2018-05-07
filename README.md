@@ -1,3 +1,4 @@
+The codebase implements a starter agent that can solve a number of `universe` environments. Original website: https://github.com/openai/universe-starter-agent
 This repo contains a basic implementation of the [A3C algorithm](https://arxiv.org/abs/1602.01783), adapted for real-time environments.
 
 # Dependencies
